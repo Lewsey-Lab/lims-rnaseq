@@ -1,5 +1,11 @@
 #!/usr/bin/env nextflow
 
+// in DSL2, processes are chained into workflows, and input and output blocks
+// don't explicitly specify channels. The processes are written like functions
+// in the workflow block, taking inputs as arguments, and other processes
+// outputs as .out attributes
+nextflow.enable.dsl=2
+
 params.reads = "${projectDir}/data/raw/reads/*.fastq.gz"
 // params.genome = "${projectDir}/data/raw/genome/*.@(fna|fa)"
 
@@ -16,7 +22,8 @@ Channel
     // Defines the channel name
     .set { reads_ch }
 
-process fastqc {
+process FASTQC {
+    // module "fastqc/0.11.9" // this is for the hpc, disable for now
     tag "FastQC on ${acc_id}"
     // Copies outputs of process to publishdir. No need to use absolute paths
     // in shell/script block
@@ -24,11 +31,11 @@ process fastqc {
 
     input:
         // Breaks the tuple stream to acc_id and read path
-        tuple val(acc_id), path(read) from reads_ch
+        tuple val(acc_id), path(read)
 
     output:
-        // Folder containing fastqc html and zip passed into fastqc_ch
-        path "${acc_id}" into fastqc_ch
+        // Folder containing fastqc html and zip
+        path "${acc_id}"
 
     // shell/script block does work in 'work' temp directory, NOT the project
     // directory (important to note!) hence the folder passed to fastqc as
@@ -42,13 +49,12 @@ process fastqc {
         """
 }
 
-process multiqc {
+process MULTIQC {
+    // module "multiqc/1.9" .. this is for hpc, disable for now
     publishDir "${projectDir}/reports/fastqc", mode: "copy"
 
     input:
-        // .collect() waits for all inputs, puts it in a list, and all fastqc
-        // directories are passed to the process for multiqc
-        path "*" from fastqc_ch.collect()
+        path "*"
 
     output:
         path "multiqc_report.html"
@@ -57,4 +63,9 @@ process multiqc {
     """
     multiqc .
     """
+}
+
+workflow {
+    FASTQC(reads_ch)
+    MULTIQC(FASTQC.out.collect())
 }
