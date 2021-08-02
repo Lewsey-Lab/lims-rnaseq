@@ -99,3 +99,4 @@ target/
 # nextflow
 /work/
 /.nextflow/
+/reports/fastqc/
