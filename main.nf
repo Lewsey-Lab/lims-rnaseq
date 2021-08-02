@@ -1,6 +1,6 @@
 #!/usr/bin/env nextflow
 
-params.reads_path = "${projectDir}/data/raw/reads/*.fastq.gz"
+params.reads_path = "${projectDir}/data/raw/reads/*1.fastq.gz"
 // params.genome = "${projectDir}/data/raw/genome/*.@(fna|fa)"
 
 Channel
@@ -11,20 +11,20 @@ Channel
 
 process fastqc {
     tag "FastQC on ${acc_id}"
-    // publishDir "${projectDir}/data/interim/fastqc"
+    publishDir "${projectDir}/data/interim/fastqc", mode: "copy"
 
     input:
         tuple val(acc_id), path(read) from reads_ch
 
-    // output:
-    //     path "${projectDir}/data/interim/fastqc/${acc_id}" into fastqc_ch
+    output:
+        path "${acc_id}" into fastqc_ch
 
     script:
 
-        outdir = "${projectDir}/data/interim/fastqc/${acc_id}"
-
         """
-        mkdir -p ${outdir}
-        fastqc -o ${outdir} ${read}
+        mkdir -p ${acc_id}
+        fastqc -o ${acc_id} ${read}
         """
 }
+
+fastqc_ch.view()
