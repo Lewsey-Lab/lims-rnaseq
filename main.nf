@@ -23,7 +23,6 @@ Channel
     .set { reads_ch }
 
 process FASTQC {
-    // module "fastqc/0.11.9" // this is for the hpc, disable for now
     tag "FastQC on ${acc_id}"
     // Copies outputs of process to publishdir. No need to use absolute paths
     // in shell/script block
@@ -50,7 +49,6 @@ process FASTQC {
 }
 
 process MULTIQC {
-    // module "multiqc/1.9" .. this is for hpc, disable for now
     publishDir "${projectDir}/reports/fastqc", mode: "copy"
 
     input:
