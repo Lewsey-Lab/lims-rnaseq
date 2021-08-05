@@ -78,7 +78,7 @@ process TRIMMING {
 
     publishDir(
         path: "${projectDir}/data/interim/trim_reads",
-        pattern: '*_trimmed.fastq.gz',
+        pattern: '*_trimmed.fq.gz',
         mode: 'copy'
         )
 
@@ -91,25 +91,23 @@ process TRIMMING {
     input:
         tuple val(acc_id), path(reads), val(pe)
 
-    // output:
-    //     path('*_trimmed.fastq.gz'), emit: trim_reads
-    //     path('*.txt')
+    output:
+        tuple val(acc_id), path('*_trimmed.fq.gz'), val(pe) emit: trim_reads_ch
+        path('*.txt')
 
     shell:
-        println "acc_id: ${acc_id} path: ${reads}, PE ${pe}"
-        '''echo test'''
-// if ( pe == true )
-//     '''
-//     trim_galore --illumina --trim-n !{reads[0]} !{reads[1]}
-//     '''
-// else
-//     '''
-//     trim_galore --illumina --trim-n !{reads[0]}
-//     '''
+        if ( pe == true )
+            '''
+            trim_galore --illumina --trim-n --cores 4 !{reads[0]} !{reads[1]}
+            '''
+        else
+            '''
+            trim_galore --illumina --trim-n --cores 4 !{reads[0]}
+            '''
 }
 
 workflow {
-    reads_ch.mix().view()
+    // reads_ch.mix().view()
     // reads_ch.se and reads_ch.pe are mixed as they're processed the same
     // FASTQC(reads_ch.mix())
     // MULTIQC(FASTQC.out.collect())

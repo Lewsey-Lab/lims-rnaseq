@@ -100,3 +100,4 @@ target/
 /work/
 /.nextflow/
 /reports/fastqc/
+/reports/trim_galore/
