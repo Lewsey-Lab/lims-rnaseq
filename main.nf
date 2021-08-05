@@ -92,7 +92,7 @@ process TRIMMING {
         tuple val(acc_id), path(reads), val(pe)
 
     output:
-        tuple val(acc_id), path('*_trimmed.fq.gz'), val(pe) emit: trim_reads_ch
+        tuple val(acc_id), path('*_trimmed.fq.gz'), val(pe), emit: trim_reads_ch
         path('*.txt')
 
     shell:
