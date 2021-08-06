@@ -7,12 +7,13 @@
 nextflow.enable.dsl = 2
 
 params.reads = "${projectDir}/data/raw/reads/*.fastq.gz"
-// params.genome = "${projectDir}/data/raw/genome/*.@(fna|fa)"
+params.genome = "${projectDir}/data/raw/genome/*.{fna,fa}"
 
 println """
         R N A S E Q - N F   P I P E L I N E
         ===================================
         reads: ${params.reads}
+        genome: ${params.genome}
         """
         .stripIndent()
 
@@ -33,6 +34,10 @@ Channel
     .branch(pe_criteria)
     // Defines the channel name
     .set { raw_reads }
+
+Channel
+    .fromPath(params.genome)
+    .set { genome }
 
 process FASTQC {
     tag "FastQC on ${acc_id}"
@@ -110,11 +115,32 @@ process TRIMMING {
             '''
 }
 
+process INDEXING {
+    tag "${genome.name}"
+
+    publishDir(
+        path: "${projectDir}/data/interim/index/${genome.name}", 
+        mode: 'copy'
+    )
+
+    input:
+        path(genome)
+    
+    output:
+        path('*')
+
+    shell:
+        '''
+        hisat2-build -p 12 !{genome} !{genome}
+        '''
+}
+
 workflow {
+    genome.view()
     // raw_reads.mix().view()
     // raw_reads.se and raw_reads.pe are mixed as they're processed the same
     TRIMMING(raw_reads.mix())
     all_reads = TRIMMING.out.trim_reads.mix(raw_reads.se,raw_reads.pe,)
     FASTQC(all_reads)
-    MULTIQC(FASTQC.out.collect())
+    INDEXING(genome)
 }
