@@ -127,10 +127,7 @@ process TRIMMING {
 process INDEXING {
     tag "${genome.name}"
 
-    publishDir(
-        path: "${projectDir}/data/interim/index/${genome.name}",
-        mode: 'copy'
-    )
+    storeDir "${projectDir}/data/interim/index/${genome.name}"
 
     input:
         path(genome)
@@ -150,7 +147,7 @@ process ALIGNMENT {
 
     publishDir(
         path: "${projectDir}/data/processed/hisat2",
-        pattern: "*.bam",
+        pattern: "*.ba[m,i]",
         mode: 'copy'
     )
 
@@ -167,6 +164,7 @@ process ALIGNMENT {
     output:
         path('*.txt')
         path('*.bam')
+        path('*bai')
 
     shell:
         index_name = index[0].name.split(/.\d+.ht2/)[0]
@@ -184,7 +182,9 @@ process ALIGNMENT {
         --new-summary --summary-file !{acc_id}.txt \
         -x !{index_name} \
         !{arg} \
-        | samtools sort -o !{acc_id}.sorted.max.intron.6000.bam
+        | samtools sort -O BAM \
+        |tee !{acc_id}.sorted.max.intron.6000.bam \
+        | samtools index - !{acc_id}.sorted.max.intron.6000.bai
         '''
 }
 
