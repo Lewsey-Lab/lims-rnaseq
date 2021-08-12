@@ -99,5 +99,4 @@ target/
 # nextflow
 /work/
 /.nextflow/
-/reports/fastqc/
-/reports/trim_galore/
+/reports/**/
