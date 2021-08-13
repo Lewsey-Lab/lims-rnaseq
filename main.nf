@@ -8,6 +8,8 @@ nextflow.enable.dsl = 2
 
 params.reads = "${projectDir}/data/raw/reads/*.fastq.gz"
 params.genome = "${projectDir}/data/raw/genome/*.{fna,fa}"
+params.dev = false
+params.number_of_inputs = 2
 
 println """
         R N A S E Q - N F   P I P E L I N E
@@ -17,16 +19,8 @@ println """
         """
         .stripIndent()
 
-// Closure definition used whenever we want to distinguish between PE and SE
-// entries by checking the length of their read list
-def pe_criteria = branchCriteria {
-    se: it[1].size() == 1
-        return it + false
-    pe: it[1].size() == 2
-        return it + true
-}
-
-def create_fastq_channels(it) {
+def create_metadata(it) {
+    // Infers single-end reads and combines it with ID in a meta dict
     def acc_id = it[0]
     def read_paths = it[1]
     def meta = [:]
@@ -43,41 +37,41 @@ def create_fastq_channels(it) {
     }
 
     def array = [meta, read_paths]
+
     return array
 }
 
 Channel
-    // closure (like lambda functions in python) specifies the stream as tuple
-    // of accession no. (single val) and filepath (list of one or two paths)
-    .fromFilePairs(params.reads, size: -1) { file -> file.name.split('_')[0] }
-    // branch splits stream into single read and paired read sub-streams, based
-    // on whether the file list (index 1) has one or two files. A boolean is
-    // appended to keep track of this information.
-    // .branch(pe_criteria)
-    .map {create_fastq_channels(it)}
-    // Defines the channel name
-    .set { raw_reads }
+    // uses preexisting .fromFilePairs method to get [acc_id, [reads]]
+    .fromFilePairs(params.reads, size: -1) {file -> file.name.split('_')[0]}
+    // if params.dev is false, take all inputs
+    .take(params.dev ? params.number_of_inputs : -1)
+    // create metadata and return [meta, [reads]]
+    .map{create_metadata(it)}
+    .set{raw_reads}
 
 Channel
     .fromPath(params.genome)
-    .set { genome }
+    // Takes only the first genome it finds in param.genome
+    .first()
+    .set{genome}
 
 
 process FASTQC {
-    tag "FastQC on ${acc_id}"
+    tag "${meta.id}"
     // Copies outputs of process to publishdir. No need to use absolute paths
     // in shell/script block
     publishDir "${projectDir}/reports/fastqc", mode: 'copy'
 
     input:
-        // Breaks the tuple stream to acc_id and read path
-        tuple val(acc_id), path(reads), val(pe)
+        // Breaks the tuple stream to meta dict and read path
+        tuple val(meta), path(reads)
 
     output:
         // Folder containing fastqc html and zip. '*' is necessary as only the
         // contents of the folder is unique, otherwise fastqc folders of the
         // same name from the trimmed output would result in input collisions
-        path "${acc_id}/*"
+        path "${meta.id}/*"
 
     // shell/script block does work in 'work' temp directory, NOT the project
     // directory (important to note!) hence the folder passed to fastqc as
@@ -86,8 +80,8 @@ process FASTQC {
     // the shell/script block
     shell:
         '''
-        mkdir -p !{acc_id}
-        fastqc -q -t 6 -o !{acc_id} !{reads}
+        mkdir -p !{meta.id}
+        fastqc -q -t 6 -o !{meta.id} !{reads}
         '''
 }
 
@@ -109,7 +103,7 @@ process MULTIQC {
 }
 
 process TRIMMING {
-    tag "${acc_id}"
+    tag "${meta.id}"
 
     // Separates the trimmed reads from the generated reports
     publishDir(
@@ -125,25 +119,23 @@ process TRIMMING {
     )
 
     input:
-        tuple val(acc_id), path(reads), val(pe)
+        tuple val(meta), path(reads)
 
     output:
-        tuple val(acc_id), path('*.fq.gz'), val(pe), emit: trim_reads
+        tuple val(meta), path('*.fq.gz'), emit: trim_reads
         path('*.txt')
 
     // TODO: Provide core arguments dynamically
     shell:
-        if ( pe == true ) {
-            '''
-            trim_galore --illumina --trim-n --cores 2 --paired !{reads[0]} !{reads[1]}
-            '''
+        if ( meta.single_end == true ) {
+            args = "${reads[0]}"
         }
-
         else {
-            '''
-            trim_galore --illumina --trim-n --cores 2 !{reads[0]}
-            '''
+            args = "--paired ${reads[0]} ${reads[1]}"
         }
+        '''
+        trim_galore --illumina --trim-n --cores 2 !{args}
+        '''
 }
 
 process INDEXING {
@@ -165,7 +157,7 @@ process INDEXING {
 }
 
 process ALIGNMENT {
-    tag "${acc_id}"
+    tag "${meta.id}"
 
     publishDir(
         path: "${projectDir}/data/processed/hisat2",
@@ -180,7 +172,7 @@ process ALIGNMENT {
     )
 
     input:
-        tuple val(acc_id), path(reads), val(pe)
+        tuple val(meta), path(reads)
         path(index)
 
     output:
@@ -190,34 +182,32 @@ process ALIGNMENT {
 
     shell:
         index_name = index[0].name.split(/.\d+.ht2/)[0]
-        if (pe == true) {
-            arg = "-1 ${reads[0]} -2 ${reads[1]}"
+        if (meta.single_end == true) {
+            arg = "-U ${reads[0]}"
         }
         else {
-            arg = "-U ${reads[0]}"
+            arg = "-1 ${reads[0]} -2 ${reads[1]}"
         }
         '''
         hisat2 \
         --min-intronlen 20 --max-intronlen 6000 \
         --rna-strandness R \
         -p 10 \
-        --new-summary --summary-file !{acc_id}.txt \
+        --new-summary --summary-file !{meta.id}.txt \
         -x !{index_name} \
         !{arg} \
         | samtools sort -O BAM \
-        |tee !{acc_id}.sorted.max.intron.6000.bam \
-        | samtools index - !{acc_id}.sorted.max.intron.6000.bai
+        |tee !{meta.id}.sorted.max.intron.6000.bam \
+        | samtools index - !{meta.id}.sorted.max.intron.6000.bai
         '''
 }
 
 workflow {
-    // raw_reads.se and raw_reads.pe are mixed as they're processed the same
-    raw_reads.view()
-    // TRIMMING(raw_reads.mix())
+    TRIMMING(raw_reads)
     // // Mixing trimmed and untrimmed reads before fastqc
-    // all_reads = TRIMMING.out.trim_reads.mix(raw_reads.se, raw_reads.pe)
-    // FASTQC(all_reads)
-    // MULTIQC(FASTQC.out.collect())
-    // INDEXING(genome)
-    // ALIGNMENT(TRIMMING.out.trim_reads, INDEXING.out.first())
+    all_reads = raw_reads.mix(TRIMMING.out.trim_reads)
+    FASTQC(all_reads)
+    MULTIQC(FASTQC.out.collect())
+    INDEXING(genome)
+    ALIGNMENT(TRIMMING.out.trim_reads, INDEXING.out)
 }
