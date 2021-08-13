@@ -26,6 +26,26 @@ def pe_criteria = branchCriteria {
         return it + true
 }
 
+def create_fastq_channels(it) {
+    def acc_id = it[0]
+    def read_paths = it[1]
+    def meta = [:]
+
+    meta.id = acc_id
+    meta.strandness = 'R'
+
+    if (read_paths.size() == 1) {
+        meta.single_end = true
+    }
+
+    else if (read_paths.size() == 2) {
+        meta.single_end = false
+    }
+
+    def array = [meta, read_paths]
+    return array
+}
+
 Channel
     // closure (like lambda functions in python) specifies the stream as tuple
     // of accession no. (single val) and filepath (list of one or two paths)
@@ -33,13 +53,15 @@ Channel
     // branch splits stream into single read and paired read sub-streams, based
     // on whether the file list (index 1) has one or two files. A boolean is
     // appended to keep track of this information.
-    .branch(pe_criteria)
+    // .branch(pe_criteria)
+    .map {create_fastq_channels(it)}
     // Defines the channel name
     .set { raw_reads }
 
 Channel
     .fromPath(params.genome)
     .set { genome }
+
 
 process FASTQC {
     tag "FastQC on ${acc_id}"
@@ -190,11 +212,12 @@ process ALIGNMENT {
 
 workflow {
     // raw_reads.se and raw_reads.pe are mixed as they're processed the same
-    TRIMMING(raw_reads.mix())
-    // Mixing trimmed and untrimmed reads before fastqc
-    all_reads = TRIMMING.out.trim_reads.mix(raw_reads.se, raw_reads.pe)
-    FASTQC(all_reads)
-    MULTIQC(FASTQC.out.collect())
-    INDEXING(genome)
-    ALIGNMENT(TRIMMING.out.trim_reads, INDEXING.out.first())
+    raw_reads.view()
+    // TRIMMING(raw_reads.mix())
+    // // Mixing trimmed and untrimmed reads before fastqc
+    // all_reads = TRIMMING.out.trim_reads.mix(raw_reads.se, raw_reads.pe)
+    // FASTQC(all_reads)
+    // MULTIQC(FASTQC.out.collect())
+    // INDEXING(genome)
+    // ALIGNMENT(TRIMMING.out.trim_reads, INDEXING.out.first())
 }
