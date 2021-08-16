@@ -11,7 +11,9 @@ if (!params.genome) {exit 1, "Please specify genome folder name with --genome <g
 
 params.genomeDir = "${launchDir}/data/genomes/${params.genome}/"
 params.genome_pattern = "*.{fna,fa}"
+params.annotation_pattern = "*.gtf"
 params.genomePath = params.genomeDir + params.genome_pattern
+params.annotationPath = params.genomeDir + params.annotation_pattern
 
 params.readsDir = "${launchDir}/data/raw_reads/"
 params.read_pattern = "*.fastq.gz"
@@ -36,6 +38,7 @@ println """
 
         read_pattern  : ${params.read_pattern}
         genome_pattern: ${params.genome_pattern}
+        annotation    : ${params.annotationPath}
         """
         .stripIndent()
 
@@ -76,6 +79,10 @@ Channel
     .first()
     .set{genome}
 
+Channel
+    .fromPath(params.annotationPath)
+    .first()
+    .set{annotation}
 
 process FASTQC {
     tag "${meta.id}"
@@ -199,7 +206,7 @@ process ALIGNMENT {
 
     output:
         path('*.txt')
-        path('*.bam')
+        path('*.bam'), emit: alignments
         path('*bai')
 
     shell:
@@ -224,6 +231,28 @@ process ALIGNMENT {
         '''
 }
 
+process FEATURECOUNTS {
+    publishDir "${launchDir}/reports/featureCounts", mode: 'copy'
+
+    input:
+        path(alignments)
+        path(annotation)
+
+    output:
+        path("gene_counts.txt")
+
+    shell:
+        '''
+        featureCounts \
+        --primary \
+        -s 2 \
+        -T 10 \
+        -a !{annotation} \
+        -o gene_counts.txt \
+        !{alignments}
+        '''
+}
+
 workflow {
     TRIMMING(raw_reads)
     // // Mixing trimmed and untrimmed reads before fastqc
@@ -232,4 +261,5 @@ workflow {
     MULTIQC(FASTQC.out.collect())
     INDEXING(genome)
     ALIGNMENT(TRIMMING.out.trim_reads, INDEXING.out.index)
+    FEATURECOUNTS(ALIGNMENT.out.alignments.collect(), annotation)
 }
