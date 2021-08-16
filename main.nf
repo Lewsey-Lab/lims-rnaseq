@@ -6,20 +6,40 @@
 // outputs as .out attributes
 nextflow.enable.dsl = 2
 
-params.reads = "${projectDir}/data/raw/reads/*.fastq.gz"
-params.genome = "${projectDir}/data/raw/genome/*.{fna,fa}"
+params.genome = false
+if (!params.genome) {exit 1, "Please specify genome folder name with --genome <genome_name>"}
+
+params.genomeDir = "${launchDir}/data/genomes/${params.genome}/"
+params.genome_pattern = "*.{fna,fa}"
+params.genomePath = params.genomeDir + params.genome_pattern
+
+params.readsDir = "${launchDir}/data/raw_reads/"
+params.read_pattern = "*.fastq.gz"
+params.reads = params.readsDir + params.read_pattern
+
 params.dev = false
 params.number_of_inputs = 2
+
 
 println """
         R N A S E Q - N F   P I P E L I N E
         ===================================
-        reads: ${params.reads}
-        genome: ${params.genome}
+        
+        Core Nextflow Options
+        launchDir     : ${launchDir}
+        workDir       : ${workDir}
+        projectDir    : ${projectDir}
+
+        Input Options
+        readsDir      : ${params.readsDir}
+        genomeDir     : ${params.genomeDir}
+
+        read_pattern  : ${params.read_pattern}
+        genome_pattern: ${params.genome_pattern}
         """
         .stripIndent()
 
-def create_metadata(it) {
+def get_read_metadata(it) {
     // Infers single-end reads and combines it with ID in a meta dict
     def acc_id = it[0]
     def read_paths = it[1]
@@ -47,11 +67,11 @@ Channel
     // if params.dev is false, take all inputs
     .take(params.dev ? params.number_of_inputs : -1)
     // create metadata and return [meta, [reads]]
-    .map{create_metadata(it)}
+    .map{get_read_metadata(it)}
     .set{raw_reads}
 
 Channel
-    .fromPath(params.genome)
+    .fromPath(params.genomePath)
     // Takes only the first genome it finds in param.genome
     .first()
     .set{genome}
@@ -61,7 +81,7 @@ process FASTQC {
     tag "${meta.id}"
     // Copies outputs of process to publishdir. No need to use absolute paths
     // in shell/script block
-    publishDir "${projectDir}/reports/fastqc", mode: 'copy'
+    publishDir "${launchDir}/reports/fastqc", mode: 'copy'
 
     input:
         // Breaks the tuple stream to meta dict and read path
@@ -86,7 +106,7 @@ process FASTQC {
 }
 
 process MULTIQC {
-    publishDir "${projectDir}/reports/fastqc", mode: 'copy'
+    publishDir "${launchDir}/reports/fastqc", mode: 'copy'
 
     input:
         path('*')
@@ -107,13 +127,13 @@ process TRIMMING {
 
     // Separates the trimmed reads from the generated reports
     publishDir(
-        path: "${projectDir}/data/interim/trim_reads",
+        path: "${launchDir}/data/trim_reads",
         pattern: '*_trimmed.fq.gz',
         mode: 'copy'
         )
 
     publishDir(
-        path:"${projectDir}/reports/trim_galore",
+        path:"${launchDir}/reports/trim_galore",
         pattern: '*.txt',
         mode: 'copy'
     )
@@ -141,18 +161,20 @@ process TRIMMING {
 process INDEXING {
     tag "${genome.name}"
 
-    storeDir "${projectDir}/data/interim/index/${genome.name}"
+    storeDir "${projectDir}/data/genomes/${params.genome}"
 
     input:
         path(genome)
 
     output:
-        path('*')
+        path('index/*.ht2'), emit: index
+        file(genome)
 
     // TODO: provide core argument dynamically
     shell:
         '''
-        hisat2-build -p 12 !{genome} !{genome}
+        mkdir index
+        hisat2-build -p 12 !{genome} index/!{params.genome}
         '''
 }
 
@@ -160,13 +182,13 @@ process ALIGNMENT {
     tag "${meta.id}"
 
     publishDir(
-        path: "${projectDir}/data/processed/hisat2",
+        path: "${launchDir}/data/alignments",
         pattern: "*.ba[m,i]",
         mode: 'copy'
     )
 
     publishDir(
-        path: "${projectDir}/reports/hisat2",
+        path: "${launchDir}/reports/hisat2",
         pattern: "*.txt",
         mode: 'copy'
     )
@@ -209,5 +231,5 @@ workflow {
     FASTQC(all_reads)
     MULTIQC(FASTQC.out.collect())
     INDEXING(genome)
-    ALIGNMENT(TRIMMING.out.trim_reads, INDEXING.out)
+    ALIGNMENT(TRIMMING.out.trim_reads, INDEXING.out.index)
 }
