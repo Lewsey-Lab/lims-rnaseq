@@ -11,7 +11,7 @@ nextflow.enable.dsl = 2
 params.genome = false
 if (!params.genome) {exit 1, "Please specify genome folder name with --genome <genome_name>"}
 
-params.genomeDir = "${launchDir}/data/genomes/${params.genome}/"
+params.genomeDir = "${HOME}/genomes/${params.genome}/"
 params.genome_pattern = "*.{fna,fa}"
 params.annotation_pattern = "*.gtf"
 params.genomePath = params.genomeDir + params.genome_pattern
@@ -172,20 +172,18 @@ process TRIMMING {
 process INDEXING {
     tag "${genome.name}"
 
-    storeDir "${projectDir}/data/genomes/${params.genome}"
+    storeDir "${params.genomeDir}/index"
 
     input:
         path(genome)
 
     output:
-        path('index/*.ht2'), emit: index
-        file(genome)
+        path('*.ht2')
 
     // TODO: provide core argument dynamically
     shell:
         '''
-        mkdir index
-        hisat2-build -p 12 !{genome} index/!{params.genome}
+        hisat2-build -p 12 !{genome} !{genome.simpleName}
         '''
 }
 
@@ -264,6 +262,6 @@ workflow {
     FASTQC(all_reads)
     MULTIQC(FASTQC.out.collect())
     INDEXING(genome)
-    ALIGNMENT(TRIMMING.out.trim_reads, INDEXING.out.index)
+    ALIGNMENT(TRIMMING.out.trim_reads, INDEXING.out)
     FEATURECOUNTS(ALIGNMENT.out.alignments.collect(), annotation)
 }

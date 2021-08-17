@@ -48,13 +48,15 @@ available on the LIMS HPCC.
    mkdir <my_project>
    cd <my_project>
    ```
-2. Create the following folder structure for inputs:
+2. Create a `genomes` folder in the user home directory and a `data` folder in
+   the `<my_project>` folder with the following structure:
    ```
-   data
-   ├── genomes
-   │   └── <genome_name>
-   │       ├── <genome_fasta_or_fna>.fna
-   │       └── <annotation_file>.gtf
+   ~/genomes
+   └── <genome_name>
+      ├── <genome_fasta_or_fna>.fna
+      └── <annotation_file>.gtf
+
+   <my_project>/data
    └── raw_reads
        ├── <accession_id>_<this_is_a_SE_read>.fastq.gz
        ├── <accession_id>_<this_is_a_PE_read>_1.fastq.gz
@@ -104,14 +106,10 @@ anything has changed. To learn more, check out this
 
 ### Genome index files
 
-Genome indexes have been coded to be stored in a more permanent place in the
-original project folder in
-`.nextflow/assets/SpikyClip/data/genomes/<genome_name>` in the user directory.
-This allows you to use the same stored indexes without re-running the indexes,
-even in another project directory. **NOTE: You still need the same
-`<genome_fasta_or_fna>.fna` in your project `data/genomes/<genome_name>` folder
-as this is how nextflow links the input to the correct indexes** (I'm working
-on a solution that only relies on a `--genome <genome_name>` argument)
+Genome indexes have been coded to be stored in a more permanent place in
+`~/genomes/<genome_name>/index` in the user directory. This allows you to use
+the same stored indexes without re-running the indexes, even in another project
+directory.
 
 ### Processes
 
@@ -138,11 +136,10 @@ nextflow pull lims-rnaseq
 ```
 
 ## TODO
-1. Allow specification of stored genome index without requiring .fna/.fa file.
-2. Optimise CPU/Memory usage for each process.
-3. Get email notifications working.
-4. Automatic removal of empty gene_id in .gtf before featureCounts?
-5. Split up processes into sub-workflows
+1. Optimise CPU/Memory usage for each process.
+2. Get email notifications working.
+3. Automatic removal of empty gene_id in .gtf before featureCounts?
+4. Split up processes into sub-workflows
 
 ## Project Organization
 
@@ -152,8 +149,6 @@ Here is a diagram of the pipeline package structure in
     lims-rnaseq
     ├── LICENSE
     ├── README.md          <- The top-level README for developers using this project.
-    ├── data
-    │   └── genomes        <- Folder containing stored genome index folders
     ├── main.nf            <- Main script executed by Nextflow
     ├── nextflow.config    <- Nextflow configuration file
     ├── pipeline_info      <- Folder containing pipeline info and diagrams
