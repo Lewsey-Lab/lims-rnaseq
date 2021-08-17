@@ -6,6 +6,8 @@
 // outputs as .out attributes
 nextflow.enable.dsl = 2
 
+// Parameter settings
+
 params.genome = false
 if (!params.genome) {exit 1, "Please specify genome folder name with --genome <genome_name>"}
 
@@ -19,6 +21,7 @@ params.readsDir = "${launchDir}/data/raw_reads/"
 params.read_pattern = "*.fastq.gz"
 params.reads = params.readsDir + params.read_pattern
 
+// set params.dev to true to only run the first two reads through the pipeline
 params.dev = false
 params.number_of_inputs = 2
 
@@ -28,17 +31,18 @@ println """
         =======================================
         
         Core Nextflow Options
-        launchDir     : ${launchDir}
-        workDir       : ${workDir}
-        projectDir    : ${projectDir}
+        launchDir           : ${launchDir}
+        workDir             : ${workDir}
+        projectDir          : ${projectDir}
 
         Input Options
-        readsDir      : ${params.readsDir}
-        genomeDir     : ${params.genomeDir}
+        readsDir            : ${params.readsDir}
+        genomeDir           : ${params.genomeDir}
 
-        read_pattern  : ${params.read_pattern}
-        genome_pattern: ${params.genome_pattern}
-        annotation    : ${params.annotationPath}
+        Input Patterns
+        read_pattern        : ${params.read_pattern}
+        genome_pattern      : ${params.genome_pattern}
+        annotation_pattern  : ${params.annotation_pattern}
         """
         .stripIndent()
 
