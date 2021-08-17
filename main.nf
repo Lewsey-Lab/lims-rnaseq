@@ -234,7 +234,7 @@ process ALIGNMENT {
 }
 
 process FEATURECOUNTS {
-    publishDir "${launchDir}/reports/featureCounts", mode: 'copy'
+    publishDir "${launchDir}/data/featureCounts", mode: 'copy'
 
     input:
         path(alignments)
