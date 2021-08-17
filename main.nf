@@ -24,8 +24,8 @@ params.number_of_inputs = 2
 
 
 println """
-        R N A S E Q - N F   P I P E L I N E
-        ===================================
+        L I M S - R N A S E Q   P I P E L I N E
+        =======================================
         
         Core Nextflow Options
         launchDir     : ${launchDir}
