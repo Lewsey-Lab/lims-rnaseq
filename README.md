@@ -7,7 +7,8 @@ cluster (HPCC). The older linux kernel is unable to run the mainstream
 [nf-core/rnaseq](https://nf-co.re/rnaseq) due to its usage of more recent linux
 features/programs.
 
-As such, this pipeline was written to be compatible with what is currently available on the LIMS HPCC.
+As such, this pipeline was written to be compatible with what is currently
+available on the LIMS HPCC.
 
 ## Pipeline Summary
 1. Adapter and quality trimming (`trimgalore/0.6.3`)
@@ -30,7 +31,8 @@ As such, this pipeline was written to be compatible with what is currently avail
    ```
    wget -qO- https://get.nextflow.io | bash
    ```
-3. Move the newly created executable file `nextflow` to a folder accessible by `PATH`.
+3. Move the newly created executable file `nextflow` to a folder accessible by
+   `PATH`.
    
 4. Pull the `lims-rnaseq` pipeline with the following command: 
    ```
@@ -58,9 +60,19 @@ As such, this pipeline was written to be compatible with what is currently avail
        ├── <accession_id>_<this_is_a_PE_read>_1.fastq.gz
        └── <accession_id>_<this_is_a_PE_read>_2.fastq.gz
    ```
-   Take note of the name of the genome folder, `<genome_name>`. This will be later used as an argument to direct nextflow to the `.fna` and `.gtf` files. Also take note of the format of the read names. PE reads are automatically distinguished by an identical name apart from the trailing `_1` and `_2`. If the body name is not identical, it would be treated as a SE read. (**NOTE:** I have yet to write a test to make sure inputs are correct, but will do so in the future. **All reads are also treated as reverse reads**, will probably add a way to detect it from the file name.)
+   Take note of the name of the genome folder, `<genome_name>`. This will be
+   later used as an argument to direct nextflow to the `.fna/.fa` and `.gtf`
+   files (there should only be one `.fna/.fa file` and one `.gtf` file per
+   genome folder as this pipeline sticks to one genome per run). Also take note
+   of the format of the read names. PE reads are automatically distinguished by
+   an identical name apart from the trailing `_1` and `_2`. If the body name is
+   not identical, it would be treated as a SE read. (**NOTE:** I have yet to
+   write a test to make sure inputs are correct, but will do so in the future.
+   **All reads are also treated as reverse reads**, will probably add a way to
+   detect it from the file name.)
 
-3. Load the java module (if not already loaded) and run the pipeline in the `<my_project>` directory:
+3. Load the java module (if not already loaded) and run the pipeline in the
+   `<my_project>` directory:
    ```
    module load java/1.8.0_66
 
@@ -71,33 +83,52 @@ As such, this pipeline was written to be compatible with what is currently avail
    ```
    Omit the `-profile` argument if not running on the LIMS-HPCC.
 4. Stop the pipeline at any time with ctrl + c without losing progress. To
-   resume the last run, add the optional argument `-resume`. Results get output into the `data` folder and diagnostics into the `reports` folder
+   resume the last run, add the optional argument `-resume`. Results get output
+   into the `data` folder and diagnostics into the `reports` folder
 
 ## How does it work?
 
 ### Results
-Results for the user are published to the project folder under newly created subfolders in `data` and `reports`.
+Results for the user are published to the project folder under newly created
+subfolders in `data` and `reports`.
 
 ### `work` folder
-Nextflow creates a `work` folder containing checksummed folders where the actually process files are produced. These folders are not meant to be touched manually (but can be useful for debugging). These folders allow the pipeline to recall its process, allowing it to stop and resume without losing information. It also ensures that there will not be any cross process collisions as each folder is unique. It relies on checksums from inputs and outputs to detect if anything has changed. To learn more, check out this [post](https://www.nextflow.io/blog/2019/demystifying-nextflow-resume.html).
+Nextflow creates a `work` folder containing checksummed folders where the
+actually process files are produced. These folders are not meant to be touched
+manually (but can be useful for debugging). These folders allow the pipeline to
+recall its process, allowing it to stop and resume without losing information.
+It also ensures that there will not be any cross process collisions as each
+folder is unique. It relies on checksums from inputs and outputs to detect if
+anything has changed. To learn more, check out this
+[post](https://www.nextflow.io/blog/2019/demystifying-nextflow-resume.html).
 
 ### Genome index files
 
-Genome indexes have been coded to be stored in a more permanent place in the original project folder in `.nextflow/assets/SpikyClip/data/genomes/<genome_name>` in the user directory. This allows you to use the same stored indexes without re-running the indexes, even in another project directory. **NOTE: You still need the same `<genome_fasta_or_fna>.fna` in your project `data/genomes/<genome_name>` folder as this is how nextflow links the input to the correct indexes** (I'm working on a solution that only relies on a `--genome <genome_name>` argument)
+Genome indexes have been coded to be stored in a more permanent place in the
+original project folder in
+`.nextflow/assets/SpikyClip/data/genomes/<genome_name>` in the user directory.
+This allows you to use the same stored indexes without re-running the indexes,
+even in another project directory. **NOTE: You still need the same
+`<genome_fasta_or_fna>.fna` in your project `data/genomes/<genome_name>` folder
+as this is how nextflow links the input to the correct indexes** (I'm working
+on a solution that only relies on a `--genome <genome_name>` argument)
 
 ### Processes
 
-Processes are done in parallel whenever possible (e.g. fastqc and
-trimming on multiple files). The `-profile cluster` argument tells
-nextflow to use the module loading system on the HPCC to load the
-necessary modules for each process, and also to generate a slurm job for
-each process. If you plan on running a long nextflow job on the HPCC,
-wrap the `nextflow run` command in a shell script and submit it like any
-other slurm job.
+Processes are done in parallel whenever possible (e.g. fastqc and trimming on
+multiple files). The `-profile cluster` argument tells nextflow to use the
+module loading system on the HPCC to load the necessary modules for each
+process, and also to generate a slurm job for each process. If you plan on
+running a long nextflow job on the HPCC, wrap the `nextflow run` command in a
+shell script and submit it like any other slurm job.
 
 ### Debugging
 
-If you run into errors, checkout the `.nextflow.log` file created in the project folder for debugging. Once the errors are fix, run the pipeline with the `-resume` to continue work. As the pipeline is a work in progress, please report any issues or recommendations [here](https://github.com/SpikyClip/lims-rnaseq/issues).
+If you run into errors, checkout the `.nextflow.log` file created in the
+project folder for debugging. Once the errors are fix, run the pipeline with
+the `-resume` to continue work. As the pipeline is a work in progress, please
+report any issues or recommendations
+[here](https://github.com/SpikyClip/lims-rnaseq/issues).
 
 ### Pipeline updates
 
@@ -115,7 +146,8 @@ nextflow pull lims-rnaseq
 
 ## Project Organization
 
-Here is a diagram of the pipeline package structure in `.nextflow/assets/SpikyClip/lims-rnaseq`
+Here is a diagram of the pipeline package structure in
+`.nextflow/assets/SpikyClip/lims-rnaseq`
 
     lims-rnaseq
     ├── LICENSE
