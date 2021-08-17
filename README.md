@@ -10,11 +10,11 @@ features/programs.
 As such, this pipeline was written to be compatible with what is currently available on the LIMS HPCC.
 
 ## Pipeline Summary
-1. Adapter and quality trimming (trimgalore/0.6.3)
-2. Read QC (fastqc/0.11.9, multiqc/1.9)
-3. Creation of genome index (hisat-gcc/2.1.0)
-4. Read alignment and indexing (hisat-gcc/2.1.0, samtools-gcc7/1.9)
-5. Gene-level quantification (featureCounts 1.6.0, subread-gcc/1.6.0)
+1. Adapter and quality trimming (`trimgalore/0.6.3`)
+2. Read QC (`fastqc/0.11.9`, `multiqc/1.9`)
+3. Creation of genome index (`hisat-gcc/2.1.0`)
+4. Read alignment and indexing (`hisat-gcc/2.1.0`, `samtools-gcc7/1.9`)
+5. Gene-level quantification (`featureCounts 1.6.0`, `subread-gcc/1.6.0`)
 
 ## Installation
 1. Install [java 8 or later (up to
@@ -79,7 +79,7 @@ As such, this pipeline was written to be compatible with what is currently avail
 Results for the user are published to the project folder under newly created subfolders in `data` and `reports`.
 
 ### `work` folder
-Nextflow creates a `work` folder containing checksummed folders where the actually process files are produced. These folders are not meant to be touched manually. These folders allow the pipeline to recall its process, allowing it to stop and resume without losing information. It also ensures that there will not be any cross process collisions. It relies on checksums from inputs and outputs to detect if anything has changed. To learn more, check out this [post](https://www.nextflow.io/blog/2019/demystifying-nextflow-resume.html).
+Nextflow creates a `work` folder containing checksummed folders where the actually process files are produced. These folders are not meant to be touched manually (but can be useful for debugging). These folders allow the pipeline to recall its process, allowing it to stop and resume without losing information. It also ensures that there will not be any cross process collisions as each folder is unique. It relies on checksums from inputs and outputs to detect if anything has changed. To learn more, check out this [post](https://www.nextflow.io/blog/2019/demystifying-nextflow-resume.html).
 
 ### Genome index files
 
@@ -99,11 +99,19 @@ other slurm job.
 
 If you run into errors, checkout the `.nextflow.log` file created in the project folder for debugging. Once the errors are fix, run the pipeline with the `-resume` to continue work. As the pipeline is a work in progress, please report any issues or recommendations [here](https://github.com/SpikyClip/lims-rnaseq/issues).
 
+### Pipeline updates
+
+To update the pipeline run:
+```
+nextflow pull lims-rnaseq
+```
+
 ## TODO
 1. Allow specification of stored genome index without requiring .fna/.fa file.
 2. Optimise CPU/Memory usage for each process.
 3. Get email notifications working.
-4. Split up processes into sub-workflows
+4. Automatic removal of empty gene_id in .gtf before featureCounts?
+5. Split up processes into sub-workflows
 
 ## Project Organization
 
